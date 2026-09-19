@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Game Hub — Telegram Mini App</title>
+<script src="https://telegram.org/js/telegram-web-app.js">
+let popularTimer=null, newTimer=null;
+function enableCarousels(){
+  const p=document.getElementById('popularGames'), n=document.getElementById('newGames');
+  if(!p||!n)return;
+  clearInterval(popularTimer); clearInterval(newTimer);
+  const step=()=>Math.max(130,Math.round(p.clientWidth*.34));
+  const stepN=()=>Math.max(130,Math.round(n.clientWidth*.34));
+  let pDir=1, nDir=-1;
+  popularTimer=setInterval(()=>{
+    if(document.hidden)return;
+    const max=p.scrollWidth-p.clientWidth;
+    if(max<=2)return;
+    p.scrollLeft += step()*pDir;
+    if(p.scrollLeft>=max-2)pDir=-1;
+    if(p.scrollLeft<=2)pDir=1;
+  },3000);
+  newTimer=setInterval(()=>{
+    if(document.hidden)return;
+    const max=n.scrollWidth-n.clientWidth;
+    if(max<=2)return;
+    n.scrollLeft += stepN()*nDir;
+    if(n.scrollLeft<=2)nDir=1;
+    if(n.scrollLeft>=max-2)nDir=-1;
+  },2600);
+  [p,n].forEach(el=>{
+    let resume;
+    const pause=()=>{clearTimeout(resume);clearInterval(el===p?popularTimer:newTimer);resume=setTimeout(enableCarousels,3500)};
+    el.addEventListener('touchstart',pause,{passive:true});
+    el.addEventListener('pointerdown',pause);
+  });
+}
+function showWithdraw(){document.getElementById('withdrawPanel').style.display='block';}
+function hideWithdraw(){document.getElementById('withdrawPanel').style.display='none';}
+let withdrawMethod='bkash';
+function selectWithdrawMethod(method){
+  withdrawMethod=method;
+  document.querySelectorAll('.withdraw-tab').forEach(b=>b.classList.toggle('active',b.dataset.method===method));
+  const label=document.getElementById('methodLabel'), amount=document.getElementById('amountLabel'), op=document.getElementById('operatorWrap'), num=document.getElementById('withdrawNumber');
+  if(method==='bkash'){label.textContent='bKash Number';amount.textContent='Withdrawal Amount';op.style.display='none';num.placeholder='01XXXXXXXXX';}
+  else if(method==='nagad'){label.textContent='Nagad Number';amount.textContent='Withdrawal Amount';op.style.display='none';num.placeholder='01XXXXXXXXX';}
+  else {label.textContent='Mobile Number';amount.textContent='Recharge Amount';op.style.display='block';num.placeholder='01XXXXXXXXX';}
+}
+function submitWithdraw(){
+  const number=document.getElementById('withdrawNumber').value.trim();
+  const amount=Number(document.getElementById('withdrawAmount').value);
+  if(!/^01\d{9}$/.test(number)){toast('Enter a valid 11-digit mobile number');return}
+  if(!amount||amount<=0){toast('Enter a valid amount');return}
+  if(amount>coins){toast('Not enough coins');return}
+  const operator=document.getElementById('operator')?.value||'';
+  const requests=JSON.parse(localStorage.getItem('gh_withdraw_requests')||'[]');
+  requests.push({method:withdrawMethod,number,amount,operator,status:'pending',createdAt:new Date().toISOString()});
+  localStorage.setItem('gh_withdraw_requests',JSON.stringify(requests));
+  toast('✅ Request submitted for review');
+  document.getElementById('withdrawAmount').value='';
+}
+
+</script>
+<style>
+:root{
+  --bg:#020b18;--panel:#071b30;--panel2:#0a2742;--line:#0b5b86;
+  --text:#f7fbff;--muted:#8faac2;--cyan:#08c8ff;--blue:#168cff;
+  --purple:#8b35ff;--pink:#f72df1;--gold:#ffc52f;--green:#25e7a0;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:#020914;color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+body{min-height:100vh;overflow-x:hidden}
+button,input{font:inherit}
+button{border:0;color:inherit;cursor:pointer}
+.app{width:100%;max-width:520px;min-height:100vh;margin:auto;background:
+ radial-gradient(circle at 20% 0%,rgba(0,180,255,.12),transparent 28%),
+ radial-gradient(circle at 100% 35%,rgba(159,0,255,.12),transparent 30%),var(--bg);
+position:relative;padding-bottom:82px}
+.tgbar{height:44px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;
+font-size:13px;color:#d9e7f4;background:#031120;border-bottom:1px solid rgba(70,170,230,.18);position:sticky;top:0;z-index:20}
+.tgbar .dots{font-size:22px;line-height:1}
+.header{padding:12px 16px 8px;display:flex;align-items:center;gap:10px}
+.logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#06d9ff,#674cff 55%,#ff2fe8);
+display:grid;place-items:center;font-size:23px;box-shadow:0 0 22px rgba(64,82,255,.45)}
+.brand{flex:1}.brand b{font-size:20px;display:block;line-height:1.05}.brand small{color:var(--muted)}
+.top-actions{display:flex;gap:6px}.mini{background:#08213b;border:1px solid #1679aa;border-radius:18px;padding:7px 9px;font-size:11px}
+.iconbtn{width:34px;height:34px;border-radius:12px;background:#08213b;border:1px solid #145577}
+main{padding:0 16px}
+.screen{display:none;animation:fade .18s ease}.screen.active{display:block}
+@keyframes fade{from{opacity:.3;transform:translateY(4px)}to{opacity:1;transform:none}}
+.search{height:40px;border-radius:22px;background:#08213a;border:1px solid #15577e;display:flex;align-items:center;padding:0 12px;gap:8px;margin:6px 0 13px}
+.search input{background:none;border:0;outline:0;color:white;width:100%;font-size:13px}.search span{color:#82a8c3}
+.balance{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:15px;
+background:linear-gradient(110deg,#0a2947,#08213a);border:1px solid #11608d;margin-bottom:12px}
+.user{display:flex;align-items:center;gap:9px}.avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#4e8cff,#b739ff);font-size:18px}
+.coins{font-weight:800;color:#ffd23d;white-space:nowrap}
+.banner{position:relative;overflow:hidden;border-radius:18px;min-height:126px;padding:17px;
+background:linear-gradient(115deg,#1733d9,#7d23ef 52%,#ed2bdc);border:1px solid rgba(255,255,255,.18);
+box-shadow:0 10px 30px rgba(103,30,255,.2);margin-bottom:14px}
+.banner h2{margin:0 0 4px;font-size:20px}.banner p{margin:0;color:#f0eaff;font-size:12px;max-width:65%}
+.banner .gift{position:absolute;right:15px;top:20px;font-size:54px;filter:drop-shadow(0 5px 12px rgba(0,0,0,.3))}
+.cta{background:linear-gradient(90deg,#08c8ff,#a932ff,#fa2ae2);padding:10px 18px;border-radius:22px;font-weight:800;box-shadow:0 6px 20px rgba(51,63,255,.35)}
+.banner .cta{margin-top:11px;font-size:12px}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:13px 0 9px}
+.section-title h3{margin:0;font-size:15px}.see{font-size:11px;color:#d66cff}
+.chips{display:flex;gap:8px;overflow:auto;padding-bottom:4px}.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;background:#08223b;border:1px solid #145779;border-radius:18px;padding:7px 12px;font-size:11px;color:#a9c0d4}
+.chip.active{background:linear-gradient(90deg,#008fff,#8c30ff);border-color:transparent;color:white}
+.games{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.game{background:linear-gradient(145deg,#0a2946,#06182c);border:1px solid #12547c;border-radius:15px;padding:7px;overflow:hidden;box-shadow:0 8px 18px rgba(0,0,0,.16)}
+.game-art{height:82px;border-radius:11px;display:grid;place-items:center;font-size:38px;background:radial-gradient(circle at 35% 25%,#5f46ff,#09264a 62%,#030e1e)}
+.game:nth-child(2) .game-art{background:radial-gradient(circle at 50% 25%,#ff6b2d,#55204e 60%,#06192b)}
+.game:nth-child(3) .game-art{background:radial-gradient(circle at 55% 30%,#00d5ff,#1734a8 60%,#06182c)}
+.game b{font-size:11px;display:block;margin:6px 2px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reward{font-size:10px;color:#ffd13b;margin:0 2px 6px}.play{width:100%;padding:7px;border-radius:15px;background:linear-gradient(90deg,#06bfff,#9b32ff);font-size:11px;font-weight:800}
+.list{display:flex;flex-direction:column;gap:8px}.list .game{display:flex;align-items:center;gap:10px;padding:8px}.list .game-art{width:52px;height:52px;flex:0 0 52px}.list .game-info{flex:1;min-width:0}.list .play{width:auto;padding:8px 13px}
+.detail-art{height:190px;border-radius:19px;background:radial-gradient(circle at 50% 30%,#734bff,#0b2e59 55%,#020a17);display:grid;place-items:center;font-size:90px;border:1px solid #176994;box-shadow:inset 0 0 45px rgba(31,116,255,.18)}
+.back{margin:7px 0 10px;color:#8ecff2;background:none;font-size:13px}
+.detail h1{font-size:23px;margin:10px 0 5px}.detail p{font-size:12px;line-height:1.55;color:#a6bfd3}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}.stat{background:#08223a;border:1px solid #145779;border-radius:12px;padding:9px;text-align:center;font-size:10px;color:#9bb6ca}.stat strong{display:block;color:white;font-size:13px;margin-bottom:2px}
+.bigbtn{width:100%;padding:13px;border-radius:24px;background:linear-gradient(90deg,#05c8ff,#8c35ff,#f52ce0);font-weight:900;box-shadow:0 8px 24px rgba(61,51,255,.3)}
+.gameplay{position:fixed;inset:0;background:#020713;z-index:50;display:none;max-width:520px;margin:auto;overflow:hidden}.gameplay.show{display:block}
+.playfield{height:100vh;background:radial-gradient(circle at 50% 20%,#163e75,#030c1b 58%);position:relative;overflow:hidden}
+.playtop{position:absolute;top:15px;left:14px;right:14px;display:flex;justify-content:space-between;z-index:3}.pill{padding:7px 11px;border-radius:18px;background:#061a31cc;border:1px solid #1b75a2;font-size:12px}
+.ship{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);font-size:70px;filter:drop-shadow(0 0 15px #0cf);animation:float 1.4s ease-in-out infinite alternate}
+@keyframes float{to{transform:translateX(-50%) translateY(-8px)}} .enemy{position:absolute;font-size:32px;animation:down 4s linear infinite}.e1{left:18%;top:18%}.e2{left:70%;top:28%;animation-delay:1s}.e3{left:42%;top:8%;animation-delay:2s}
+@keyframes down{to{transform:translateY(600px)}} .star{position:absolute;color:#61d9ff;opacity:.8}.s1{left:10%;top:45%}.s2{left:80%;top:55%}.s3{left:52%;top:38%}
+.controls{position:absolute;bottom:22px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:center}.control{width:58px;height:58px;border-radius:50%;background:#07294b;border:1px solid #2091c7;font-size:25px}.closegame{background:#f22d7a}
+.rewardbox{text-align:center;background:linear-gradient(145deg,#0a2946,#07182c);border:1px solid #17638c;border-radius:20px;padding:22px}.rewardbox .bigcoin{font-size:65px}.rewardbox h2{margin:5px 0}.rewardbox p{color:#9eb8cc;font-size:12px}
+.profile-card{background:linear-gradient(145deg,#0a2946,#07172a);border:1px solid #17638c;border-radius:18px;padding:14px}.profile-head{display:flex;gap:12px;align-items:center}.profile-head .avatar{width:58px;height:58px;font-size:28px}.levelbar{height:7px;border-radius:8px;background:#12344e;margin-top:8px;overflow:hidden}.levelbar i{display:block;height:100%;width:64%;background:linear-gradient(90deg,#06c8ff,#8f35ff)}
+.profile-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:12px}.menuitem{display:flex;align-items:center;gap:10px;background:#08223a;border:1px solid #124e70;border-radius:12px;padding:12px;margin-top:8px;font-size:12px}.menuitem span:first-child{font-size:18px}.menuitem b{margin-left:auto;color:#8db0c8}
+.ref{background:linear-gradient(135deg,#122fc8,#7c2df0);border-radius:18px;padding:18px;text-align:center}.ref .people{font-size:55px}.ref input{width:100%;background:#061a2d;color:white;border:1px solid #236d91;border-radius:10px;padding:10px;margin:10px 0;text-align:center}
+.daily{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:14px 0}.day{padding:9px 3px;text-align:center;background:#08223a;border:1px solid #145779;border-radius:12px;font-size:9px}.day b{display:block;color:#ffd13a;font-size:12px;margin-top:5px}
+.bottom{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:520px;height:76px;padding:8px 9px calc(8px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);
+background:rgba(3,16,30,.96);backdrop-filter:blur(18px);border-top:1px solid #0e4667;z-index:25}
+.nav{background:none;color:#7897ad;font-size:9px;display:flex;flex-direction:column;align-items:center;gap:4px}.nav i{font-style:normal;font-size:20px}.nav.active{color:#fff}.nav.active i{filter:drop-shadow(0 0 7px #09c8ff)}
+.empty{padding:30px;text-align:center;color:#8da9be}
+.toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(15px);background:#102d48;border:1px solid #1a6b92;padding:10px 15px;border-radius:20px;font-size:11px;opacity:0;pointer-events:none;transition:.25s;z-index:100;white-space:nowrap}.toast.show{opacity:1;transform:translateX(-50%)}
+@media(min-width:600px){body{padding:18px 0}.app{border-radius:24px;box-shadow:0 0 70px rgba(0,123,255,.15);overflow:hidden}.tgbar{position:relative}}
+
+/* Horizontal game carousels */
+.carousel-wrap{position:relative;overflow:hidden;margin:0 -1px 4px}
+.carousel{display:flex;gap:9px;overflow-x:auto;scroll-behavior:smooth;scrollbar-width:none;padding:2px 1px 9px;touch-action:pan-x}
+.carousel::-webkit-scrollbar{display:none}
+.carousel .game{flex:0 0 31%;min-width:31%}
+.carousel.reverse{direction:rtl}
+.carousel.reverse .game{direction:ltr}
+.carousel-note{font-size:9px;color:#6f9ab5;margin-top:-2px}
+.withdraw-card{background:linear-gradient(145deg,#0a2946,#06182c);border:1px solid #17638c;border-radius:18px;padding:14px}
+.withdraw-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}
+.withdraw-tab{padding:10px 5px;border-radius:12px;background:#08223a;border:1px solid #145779;font-size:11px}
+.withdraw-tab.active{background:linear-gradient(90deg,#08bfff,#8934ff);border-color:transparent}
+.withdraw-form label{display:block;font-size:11px;color:#91aec3;margin:10px 0 5px}
+.withdraw-form input,.withdraw-form select{width:100%;padding:11px;border-radius:11px;border:1px solid #16577b;background:#06192d;color:#fff;outline:none}
+.withdraw-info{font-size:10px;line-height:1.5;color:#82a3ba;background:#071c30;border:1px solid #124d6d;padding:9px;border-radius:10px;margin:10px 0}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="tgbar"><span>✕ &nbsp; Telegram Mini App</span><span class="dots">⋮</span></div>
+  <header class="header">
+    <div class="logo">🎮</div><div class="brand"><b>Game Hub</b><small>Play • Earn • Win</small></div>
+    <div class="top-actions"><button class="mini" id="langBtn">BN / EN</button><button class="iconbtn" onclick="toast('Notifications coming soon')">🔔</button></div>
+  </header>
+
+  <main>
+    <section id="home" class="screen active">
+      <div class="balance"><div class="user"><div class="avatar">👨‍🚀</div><div><b id="userName">Player</b><small style="display:block;color:#82a2b9">@player</small></div></div><div class="coins">🪙 <span id="coinTop">1250</span></div></div>
+      <div class="banner"><h2>Daily Bonus</h2><p>Claim your free coins every day!</p><button class="cta" onclick="claimDaily()">Claim Now ›</button><div class="gift">🎁</div></div>
+      <div class="section-title"><h3>Popular Games</h3><span class="see" onclick="go('games')">See All</span></div>
+      <div class="carousel-wrap"><div class="carousel" id="popularGames"></div></div>
+      <div class="section-title"><h3>New Games</h3><span class="see" onclick="go('games')">See All</span></div>
+      <div class="carousel-wrap"><div class="carousel reverse" id="newGames"></div></div>
+    </section>
+
+    <section id="games" class="screen">
+      <div class="search">🔍<input id="searchInput" placeholder="Search games..." oninput="renderGames()"><span>⌕</span></div>
+      <div class="section-title"><h3>All Games</h3></div>
+      <div class="chips" id="chips"></div>
+      <div class="list" id="gameList"></div>
+    </section>
+
+    <section id="detail" class="screen detail">
+      <button class="back" onclick="go('games')">← Back</button>
+      <div class="detail-art" id="detailArt">🚀</div><h1 id="detailTitle">Space Shooter</h1><p id="detailDesc">Defend your galaxy and destroy enemy ships!</p>
+      <div class="stats"><div class="stat"><strong id="detailRate">4.8 ★</strong>Rating</div><div class="stat"><strong id="detailReward">+50 🪙</strong>Reward</div><div class="stat"><strong>Easy</strong>Difficulty</div></div>
+      <button class="bigbtn" onclick="startGame()">▶ Play Now</button>
+      <h3 style="margin-top:20px">About This Game</h3><p id="detailAbout">A fast arcade game. Move, dodge and collect coins. Easy to play, hard to master!</p>
+      <div class="games" id="screenshots"></div>
+    </section>
+
+    <section id="rewards" class="screen">
+      <div class="section-title"><h3>🎁 Rewards</h3></div>
+      <div class="rewardbox"><div class="bigcoin">🪙</div><small>Your Coins</small><h2><span id="rewardCoins">1250</span></h2><button class="cta" onclick="showWithdraw()">Withdraw</button></div>
+
+      <div id="withdrawPanel" class="withdraw-card" style="display:none;margin-top:12px">
+        <div class="section-title" style="margin-top:0"><h3>💳 Withdraw / Recharge</h3><span class="see" onclick="hideWithdraw()">Close</span></div>
+        <div class="withdraw-tabs">
+          <button class="withdraw-tab active" data-method="bkash" onclick="selectWithdrawMethod('bkash')">💗 bKash</button>
+          <button class="withdraw-tab" data-method="nagad" onclick="selectWithdrawMethod('nagad')">🟠 Nagad</button>
+          <button class="withdraw-tab" data-method="recharge" onclick="selectWithdrawMethod('recharge')">📱 Recharge</button>
+        </div>
+        <div class="withdraw-form">
+          <label id="methodLabel">bKash Number</label>
+          <input id="withdrawNumber" inputmode="numeric" maxlength="15" placeholder="01XXXXXXXXX">
+          <label id="amountLabel">Amount / Coins</label>
+          <input id="withdrawAmount" inputmode="numeric" type="number" min="1" placeholder="Enter amount">
+          <div id="operatorWrap" style="display:none">
+            <label>Mobile Operator</label>
+            <select id="operator"><option value="gp">Grameenphone</option><option value="robi">Robi</option><option value="airtel">Airtel</option><option value="bl">Banglalink</option><option value="teletalk">Teletalk</option></select>
+          </div>
+          <div class="withdraw-info">Demo form: this version only records the request locally. Real bKash/Nagad payouts or mobile recharge require a secure server and the provider's approved API/merchant integration.</div>
+          <button class="bigbtn" onclick="submitWithdraw()">Submit Request</button>
+        </div>
+      </div>
+
+      <div class="section-title"><h3>Reward Options</h3></div>
+      <div class="menuitem" onclick="claimDaily()">🎁 <span>Daily Bonus<small style="display:block;color:#89a7bd">Get free coins every day</small></span><b>Claim</b></div>
+      <div class="menuitem" onclick="toast('Ad reward demo started')">📺 <span>Watch Ads<small style="display:block;color:#89a7bd">Earn coins by watching ads</small></span><b>Watch</b></div>
+      <div class="menuitem" onclick="go('invite')">👥 <span>Invite Friends<small style="display:block;color:#89a7bd">Get coins per friend</small></span><b>Invite</b></div>
+    </section>
+
+    <section id="invite" class="screen">
+      <div class="section-title"><h3>👥 Invite Friends</h3></div>
+      <div class="ref"><div class="people">🧑‍🤝‍🧑</div><h2>Invite Your Friends</h2><p>Get 500 coins for each friend who joins!</p><input id="refLink" readonly value="https://t.me/GameHubBot?start=player"><button class="bigbtn" onclick="copyRef()">Invite Now ›</button></div>
+      <div class="stats"><div class="stat"><strong>12</strong>Invited</div><div class="stat"><strong>6000</strong>Total Coins</div><div class="stat"><strong>500</strong>Per Friend</div></div>
+      <div class="section-title"><h3>Daily Bonus</h3></div>
+      <div class="daily"><div class="day">Day 1<b>✓</b></div><div class="day">Day 2<b>+100</b></div><div class="day">Day 3<b>+150</b></div><div class="day">Day 4<b>+200</b></div><div class="day">Day 5<b>+250</b></div></div>
+      <button class="bigbtn" onclick="claimDaily()">Claim Reward</button>
+    </section>
+
+    <section id="profile" class="screen">
+      <div class="section-title"><h3>👤 Profile</h3></div>
+      <div class="profile-card"><div class="profile-head"><div class="avatar">👨‍🚀</div><div><b id="profileName">Player</b><small style="display:block;color:#8ca8be">@player</small><span style="display:inline-block;margin-top:5px;background:#0a9ee0;padding:3px 8px;border-radius:10px;font-size:10px">Level 3</span></div></div><div class="levelbar"><i></i></div><small style="display:block;text-align:right;color:#89a8bd;margin-top:5px">320 / 500 XP</small>
+      <div class="profile-stats"><div class="stat"><strong id="profileCoins">1,250</strong>Coins</div><div class="stat"><strong>12</strong>Games Played</div><div class="stat"><strong>3</strong>Achievements</div></div></div>
+      <div class="menuitem">🎁 <span>My Rewards</span><b>›</b></div><div class="menuitem" onclick="go('rewards')">💳 <span>Withdraw</span><b>›</b></div><div class="menuitem" onclick="go('invite')">👥 <span>Invite Friends</span><b>+500</b></div><div class="menuitem">⚙️ <span>Settings</span><b>›</b></div><div class="menuitem" onclick="toast('Help & Support')">❓ <span>Help & Support</span><b>›</b></div>
+      <button class="bigbtn" style="margin-top:12px;background:transparent;border:1px solid #f23a8b" onclick="toast('Logged out of demo')">Logout</button>
+    </section>
+  </main>
+
+  <nav class="bottom">
+    <button class="nav active" data-page="home" onclick="go('home')"><i>⌂</i>Home</button>
+    <button class="nav" data-page="games" onclick="go('games')"><i>🎮</i>Games</button>
+    <button class="nav" data-page="rewards" onclick="go('rewards')"><i>🎁</i>Rewards</button>
+    <button class="nav" data-page="invite" onclick="go('invite')"><i>👥</i>Invite</button>
+    <button class="nav" data-page="profile" onclick="go('profile')"><i>👤</i>Profile</button>
+  </nav>
+</div>
+
+<div class="gameplay" id="gameplay">
+ <div class="playfield"><div class="playtop"><div class="pill">⏸ &nbsp; Space Shooter</div><div class="pill">🪙 <span id="playCoins">50</span></div></div>
+ <div class="enemy e1">👾</div><div class="enemy e2">👾</div><div class="enemy e3">👽</div><div class="star s1">✦</div><div class="star s2">✦</div><div class="star s3">✦</div>
+ <div class="ship">🚀</div><div class="controls"><button class="control">‹</button><button class="control" onclick="finishGame()">🚀</button><button class="control">›</button></div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const tg=window.Telegram?.WebApp;
+try{tg?.ready();tg?.expand();tg?.setHeaderColor('#031120');tg?.setBackgroundColor('#020914');}catch(e){}
+let coins=Number(localStorage.getItem('gh_coins')||1250), category='All', selected=null;
+const games=[
+ {id:1,name:'Space Shooter',cat:'Action',reward:50,icon:'🚀',rate:'4.8 ★',desc:'Defend your galaxy and destroy enemy ships!',about:'A classic space arcade game where you control a spaceship, dodge enemy waves and collect coins.'},
+ {id:2,name:'Fruit Ninja',cat:'Arcade',reward:30,icon:'🍉',rate:'4.7 ★',desc:'Slice the fruits and beat your high score!',about:'Swipe through colorful fruits, avoid bombs and score as high as you can.'},
+ {id:3,name:'Subway Surfers',cat:'Action',reward:40,icon:'🏃',rate:'4.9 ★',desc:'Run, dodge and collect coins!',about:'Dash through the city, avoid obstacles and collect as many coins as possible.'},
+ {id:4,name:'2048',cat:'Puzzle',reward:25,icon:'🔢',rate:'4.6 ★',desc:'Merge the numbers and reach 2048!',about:'A simple puzzle with strategic depth. Combine matching tiles to reach the goal.'},
+ {id:5,name:'Candy Match',cat:'Puzzle',reward:35,icon:'🍬',rate:'4.8 ★',desc:'Match 3 candies and clear the board!',about:'Match colorful candies and clear levels with fun boosters.'},
+ {id:6,name:'Temple Run',cat:'Arcade',reward:60,icon:'🗿',rate:'4.7 ★',desc:'Run for your life!',about:'Escape the temple, dodge obstacles and collect rewards.'},
+ {id:7,name:'Car Racing',cat:'Racing',reward:45,icon:'🏎️',rate:'4.5 ★',desc:'Race to the finish line!',about:'Fast arcade racing with simple controls and coin rewards.'},
+ {id:8,name:'Bubble Blast',cat:'Casual',reward:30,icon:'🫧',rate:'4.6 ★',desc:'Pop the bubbles!',about:'Relaxing casual gameplay with colorful bubble challenges.'},
+ {id:9,name:'Merge Animals',cat:'Casual',reward:40,icon:'🐯',rate:'4.7 ★',desc:'Merge animals and unlock new ones!',about:'Combine matching animals to discover new creatures.'}
+];
+function money(n){return n.toLocaleString()}
+function sync(){localStorage.setItem('gh_coins',coins);['coinTop','rewardCoins','profileCoins'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=money(coins)});}
+function card(g){return `<div class="game"><div class="game-art">${g.icon}</div><b>${g.name}</b><div class="reward">🪙 +${g.reward}</div><button class="play" onclick="openGame(${g.id})">Play</button></div>`}
+function listCard(g){return `<div class="game"><div class="game-art">${g.icon}</div><div class="game-info"><b>${g.name}</b><div class="reward">${g.desc}</div><small style="color:#ffd13b">🪙 +${g.reward}</small></div><button class="play" onclick="openGame(${g.id})">Play</button></div>`}
+function renderHome(){document.getElementById('popularGames').innerHTML=games.slice(0,3).map(card).join('');document.getElementById('newGames').innerHTML=games.slice(6,9).map(card).join('');setTimeout(enableCarousels,50)}
+function renderChips(){document.getElementById('chips').innerHTML=['All','Action','Puzzle','Arcade','Racing','Casual'].map(c=>`<button class="chip ${category===c?'active':''}" onclick="category='${c}';renderGames()">${c}</button>`).join('')}
+function renderGames(){renderChips();const q=(document.getElementById('searchInput')?.value||'').toLowerCase();let arr=games.filter(g=>(category==='All'||g.cat===category)&&g.name.toLowerCase().includes(q));document.getElementById('gameList').innerHTML=arr.length?arr.map(listCard).join(''):`<div class="empty">No games found 🎮</div>`}
+function go(page){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById(page).classList.add('active');document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===page));if(page==='games')renderGames();window.scrollTo({top:0,behavior:'smooth'})}
+function openGame(id){selected=games.find(g=>g.id===id);document.getElementById('detailArt').textContent=selected.icon;document.getElementById('detailTitle').textContent=selected.name;document.getElementById('detailDesc').textContent=selected.desc;document.getElementById('detailReward').textContent='+'+selected.reward+' 🪙';document.getElementById('detailRate').textContent=selected.rate;document.getElementById('detailAbout').textContent=selected.about;document.getElementById('screenshots').innerHTML=[1,2,3].map(()=>`<div class="game-art" style="height:80px">${selected.icon}</div>`).join('');go('detail')}
+function startGame(){if(!selected)return;document.getElementById('gameplay').classList.add('show');document.getElementById('playCoins').textContent=selected.reward}
+function finishGame(){document.getElementById('gameplay').classList.remove('show');coins+=selected?.reward||50;sync();toast('🎉 Game complete! +'+(selected?.reward||50)+' coins')}
+function claimDaily(){coins+=100;sync();toast('🎁 Daily bonus claimed: +100 coins')}
+function copyRef(){const e=document.getElementById('refLink');navigator.clipboard?.writeText(e.value);try{tg?.openTelegramLink?.('https://t.me/share/url?url='+encodeURIComponent(e.value))}catch(_){ }toast('Invite link copied')}
+function toast(msg){const e=document.getElementById('toast');e.textContent=msg;e.classList.add('show');clearTimeout(window._t);window._t=setTimeout(()=>e.classList.remove('show'),1800)}
+document.getElementById('langBtn').onclick=()=>toast('BN/EN language switch is ready for backend translations');
+try{const u=tg?.initDataUnsafe?.user;if(u){const n=[u.first_name,u.last_name].filter(Boolean).join(' ')||'Player';document.getElementById('userName').textContent=n;document.getElementById('profileName').textContent=n;document.getElementById('refLink').value='https://t.me/GameHubBot?start='+u.id;}}catch(e){}
+renderHome();renderGames();sync();
+</script>
+</body>
+</html>
